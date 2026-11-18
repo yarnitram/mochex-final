@@ -30,7 +30,7 @@ try{
  await migrate(admin);await migrate(admin);
  const dbUrl='postgresql://terminal_login:'+runtimePassword+'@127.0.0.1:'+port+'/terminal';
  const env={...process.env,DATABASE_URL:dbUrl,TEST_ADMIN_DATABASE_URL:adminUrl,FIXTURE_A_ID:a.id,FIXTURE_B_ID:b.id,FIXTURE_A_ITEM:aItem,FIXTURE_B_ITEM:bItem,FIXTURE_A_PASSWORD:aPassword,FIXTURE_B_PASSWORD:bPassword,NEXT_TELEMETRY_DISABLED:'1'};
- execFileSync(process.execPath,['--import','tsx','--test','integration/workspace.test.ts','integration/signals.test.ts','integration/observations.test.ts','integration/core.test.ts','integration/monitor.test.ts'],{env,stdio:'inherit',windowsHide:true});
+ execFileSync(process.execPath,['--import','tsx','--test','integration/workspace.test.ts','integration/signals.test.ts','integration/observations.test.ts','integration/core.test.ts','integration/monitor.test.ts','integration/chart.test.ts'],{env,stdio:'inherit',windowsHide:true});
  const portFinder=createServer();
  const webPort=await new Promise<number>((resolve,reject)=>{portFinder.once('error',reject);portFinder.listen(0,'127.0.0.1',()=>{const address=portFinder.address();if(!address||typeof address==='string')return reject(Error('No local port'));portFinder.close(()=>resolve(address.port));});});
  const origin='http://127.0.0.1:'+webPort;

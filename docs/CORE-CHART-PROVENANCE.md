@@ -3,13 +3,15 @@ title: "Core Chart Extraction Provenance"
 type: architecture
 status: draft
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-19
 ai_access: internal
 ai_generated: true
 review_status: draft
 ---
 
 # Mochex Charts baseline extraction
+
+Core3A adds a separately audited extraction from clean source5642f5c: Fibonacci, coordinate projection and drawing history helpers, verified by npm run compare:chart. See CORE3A-ARCHITECTURE.md; the earlier baseline below records its original source observation.
 
 Source: C:/Users/Samjie/ProjectCenter/Mochex, HEAD5fad2a6. The original worktree has unrelated unfinished EMA radar work; the selected EMA and precision source files were clean. No original code was modified.
 

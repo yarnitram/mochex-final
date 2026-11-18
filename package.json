@@ -18,6 +18,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "account:provision": "tsx scripts/provision-user.ts",
     "compare:sources": "tsx scripts/compare-sources.ts",
+    "compare:chart": "tsx scripts/compare-chart.ts",
     "compare:mochbot": "tsx scripts/compare-mochbot.ts"
   },
   "dependencies": {

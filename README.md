@@ -4,9 +4,13 @@
 
 The2026-11-18 owner direction replaces the scanner-first priority with EXMOCHEX watchlist, trades and journal plus Mochex Charts. See docs/CORE-V2-SPEC.md, CORE-V2-ARCHITECTURE.md and CORE-CHART-PROVENANCE.md.
 
-Primary route: /workbench. Successful login now opens the four-module UI. Earlier scanner code/tests and /workspace are preserved as deferred groundwork. Current branch: phase/core2-market-monitoring; all work remains uncommitted.
+Primary route: /workbench. Successful login opens the four-module UI. Earlier scanner code/tests and /workspace remain deferred groundwork. Git history now starts with the verified Core1/2 baseline6554fd8; Core3A is implemented on phase/core3-chart-workspace for integration into main under the owner\'s2026-11-19 push authorization.
 
-The first core slice provides manual entries/exits, journal review and chart baseline. Core2 adds active-contract discovery, live price/change/turnover columns, saved sorting/columns and persisted observed trigger/SL/TP crossings. Observations never create fills or close trades. Full Mochex drawing/layout/replay features remain Core3.
+The first core slice provides manual entries/exits, journal review and chart baseline. Core2 adds active-contract discovery, live columns, saved preferences and observed trigger/SL/TP crossings. Core3A adds four drawing tools, object editing/visibility/locking,50-step undo/redo, account-saved chart layouts, SMA overlays and RSI14. Trade entries/exits remain manual. Multi-chart, further tools/scripts/replay remain later slices.
+
+See [Core3A spec](docs/CORE3A-SPEC.md) and [architecture/API](docs/CORE3A-ARCHITECTURE.md). Save layout captures drawings, indicators and current zoom per account+symbol+timeframe; conflicts preserve your draft. Local setup: [LOCAL-DEVELOPMENT.md](docs/LOCAL-DEVELOPMENT.md). No production runtime/deployment is included.
+
+Core3A verified:42 unit tests,33 PostgreSQL checks,6 browser/API workflows, typechecks/build and actual source-helper parity. See [Core3A validation](docs/validation/2026-11-19-core3a.md). Browser captures use synthetic data; source push does not provision an account or deploy the app.
 
 Core2 verified locally:39 unit tests,30 PostgreSQL checks,5 browser/API workflows, monitor CLI smoke, typechecks/build and desktop/mobile inspection. See [Core2 spec](docs/CORE2-SPEC.md), [architecture/API](docs/CORE2-ARCHITECTURE.md) and [validation](docs/validation/2026-11-18-core2.md). Browser polling runs every10s while open; an optional CLI can monitor one configured owner. No persistent runtime installed. The public probe detected local/provider clock skew and correctly rejected affected future-dated quotes.
 

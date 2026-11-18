@@ -1,0 +1,55 @@
+import {test,expect} from '@playwright/test';
+test('A-01..07: draw/edit/undo, save layout, indicators, reload and conflicting tabs',async({page,context,baseURL})=>{
+ test.setTimeout(60000);
+ await context.route('**/api/core/candles?**',async route=>{
+  const u=new URL(route.request().url()),duration=({'1m':60,'5m':300,'15m':900,'1h':3600,'4h':14400,'1d':86400} as Record<string,number>)[u.searchParams.get('timeframe')??'15m']!,now=Math.floor(Date.now()/1000/duration)*duration;
+  const candles=Array.from({length:300},(_,i)=>{const c=100+Math.sin(i/8)*2;return {time:now-(299-i)*duration,open:c-.1,high:c+.5,low:c-.5,close:c,volume:100+i};});
+  await route.fulfill({json:{exchange:'mexc',market:'perpetual',symbol:u.searchParams.get('symbol'),timeframe:u.searchParams.get('timeframe'),updatedAt:new Date().toISOString(),candles,stale:false}});
+ });
+ await page.goto('/login');await page.getByLabel('Email',{exact:true}).fill('alice@example.test');await page.getByLabel('Password',{exact:true}).fill(process.env.FIXTURE_A_PASSWORD!);await page.getByRole('button',{name:'Sign in',exact:true}).click();
+ const charts=async(p:typeof page)=>{await p.getByRole('navigation').getByRole('button',{name:/Charts/}).click();await expect(p.getByRole('button',{name:'Save layout',exact:true})).toBeEnabled();await expect(p.getByTestId('price-chart').locator('canvas').first()).toBeVisible();};
+ await charts(page);
+ await page.getByRole('button',{name:'Horizontal line',exact:true}).click();await page.getByTestId('price-chart').click({position:{x:180,y:180}});
+ await expect(page.getByText('Objects (1)',{exact:true})).toBeVisible();
+ await page.getByLabel('Drawing name',{exact:true}).fill('Support');await page.getByRole('button',{name:'Apply drawing changes',exact:true}).click();
+ await page.getByRole('button',{name:'Lock Support',exact:true}).click();await expect(page.getByRole('button',{name:'Delete Support',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'Unlock Support',exact:true}).click();
+ await page.getByRole('button',{name:'Hide Support',exact:true}).click();await page.getByRole('button',{name:'Show Support',exact:true}).click();
+ for(const tool of ['Rectangle','Fibonacci','Trend line']){
+  await page.getByRole('button',{name:tool,exact:true}).click();await page.getByTestId('price-chart').click({position:{x:300,y:130}});await page.getByTestId('price-chart').click({position:{x:520,y:290}});
+ }
+ await expect(page.getByText('Objects (4)',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(page.getByText('Objects (3)',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Redo',exact:true}).click();await expect(page.getByText('Objects (4)',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'SMA 20',exact:true}).click();await page.getByRole('button',{name:'RSI 14',exact:true}).click();
+ await page.getByRole('button',{name:'Save layout',exact:true}).click();await expect(page.getByText('Saved layout · revision 1',{exact:true})).toBeVisible();
+ const stored=await (await context.request.get('/api/core/chart?symbol=BTC_USDT&timeframe=15m')).json();
+ expect(stored.document.drawings).toHaveLength(4);expect(stored.document.range).not.toBeNull();expect(stored.document.rsi).toBe(true);
+ await page.reload();await charts(page);await expect(page.getByText('Objects (4)',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'RSI 14',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.screenshot({path:'test-results/core3-chart-desktop.png',fullPage:true});
+ const other=await context.newPage();await other.goto('/workbench');await charts(other);
+ await page.getByRole('button',{name:'Volume',exact:true}).click();await page.getByRole('button',{name:'Save layout',exact:true}).click();await expect(page.getByText('Saved layout · revision 2',{exact:true})).toBeVisible();
+ await other.getByRole('button',{name:'SMA 50',exact:true}).click();await other.getByRole('button',{name:'Save layout',exact:true}).click();
+ await expect(other.getByRole('alert').filter({hasText:'changed elsewhere'})).toBeVisible();await expect(other.getByRole('button',{name:'SMA 50',exact:true})).toHaveAttribute('aria-pressed','true');
+ other.once('dialog',d=>d.accept());await other.getByRole('button',{name:'Reload saved',exact:true}).click();await expect(other.getByRole('button',{name:'SMA 50',exact:true})).toHaveAttribute('aria-pressed','false');
+ await other.getByLabel('Chart timeframe').selectOption('1h');await expect(other.getByText('Objects (0)',{exact:true})).toBeVisible();
+ await expect(other.getByRole('button',{name:'Save layout',exact:true})).toBeEnabled();
+ await other.getByRole('button',{name:'RSI 14',exact:true}).click();
+ other.once('dialog',d=>d.dismiss());await other.getByRole('navigation').getByRole('button',{name:/Watchlist/}).click();
+ await expect(other.getByRole('navigation').getByRole('button',{name:/Charts/})).toHaveAttribute('aria-current','page');
+ other.once('dialog',d=>d.accept());await other.getByRole('navigation').getByRole('button',{name:/Watchlist/}).click();await charts(other);
+ await expect(other.getByRole('button',{name:'RSI 14',exact:true})).toHaveAttribute('aria-pressed','false');
+ let release!:()=>void,arrived!:()=>void;
+ const gate=new Promise<void>(r=>{release=r;}),received=new Promise<void>(r=>{arrived=r;});
+ let slowRequests=0;
+ await other.route('**/api/core/chart?symbol=SLOW_USDT&timeframe=1h',async route=>{if(++slowRequests===1){await route.fulfill({json:{symbol:'SLOW_USDT',timeframe:'1h',revision:0,document:{...stored.document,drawings:[],rsi:false,sma:[],range:null}}});return;}arrived();await gate;await route.fulfill({json:{symbol:'SLOW_USDT',timeframe:'1h',revision:1,document:{...stored.document,rsi:true}}});});
+ await other.getByLabel('Chart symbol',{exact:true}).fill('SLOW_USDT');await other.getByRole('button',{name:'Load chart',exact:true}).click();await expect(other.getByRole('button',{name:'Save layout',exact:true})).toBeEnabled();
+ await other.getByRole('button',{name:'Reload saved',exact:true}).click();await received;
+ await other.getByLabel('Chart symbol',{exact:true}).fill('ETH_USDT');await other.getByRole('button',{name:'Load chart',exact:true}).click();await expect(other.getByRole('button',{name:'Save layout',exact:true})).toBeEnabled();
+ const late=other.waitForResponse(r=>r.url().includes('symbol=SLOW_USDT'));release();await late;
+ await expect(other.getByRole('button',{name:'Save layout',exact:true})).toBeEnabled();await expect(other.getByText('Objects (0)',{exact:true})).toBeVisible();await expect(other.getByRole('button',{name:'RSI 14',exact:true})).toHaveAttribute('aria-pressed','false');
+ await other.close();
+ const denied=await context.request.post('/api/core/chart',{headers:{origin:'https://wrong.example.test'},data:{}});expect(denied.status()).toBe(403);
+ const spoof=await context.request.post('/api/core/chart',{headers:{origin:baseURL!},data:{symbol:'BTC_USDT',timeframe:'15m',revision:2,requestId:crypto.randomUUID(),document:stored.document,ownerId:process.env.FIXTURE_B_ID}});expect(spoof.status()).toBe(400);
+ await page.setViewportSize({width:390,height:844});await expect(page.locator('body')).toHaveJSProperty('scrollWidth',390);await page.screenshot({path:'test-results/core3-chart-mobile.png',fullPage:true});
+});
