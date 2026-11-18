@@ -6,6 +6,7 @@ import { validatePlan,positionSummary,positive,nonnegative } from './domain.js';
 import { withOwner } from '../server/store.js';
 import { preferences,defaultPreferences } from './quotes.js';
 import { fingerprint,PersistenceError } from '../server/signal-contracts.js';
+import {parseReview} from './journal.js';
 const funding=z.strictObject({requestId:z.uuid(),margin:positive,leverage:positive.refine(v=>new Money(v).lte(1000)),entryFee:nonnegative.default('0')});
 const exitInput=z.strictObject({requestId:z.uuid(),quantity:positive,price:positive,fee:nonnegative.default('0'),note:z.string().max(2000).default('')});
 async function rows(c:PoolClient,tradeId:string){return (await c.query('SELECT data,created_at FROM core_exits WHERE trade_id=$1 ORDER BY created_at,id',[tradeId])).rows;}
@@ -76,16 +77,16 @@ export async function recordExit(db:Pool,owner:string,id:string,raw:unknown){
  });
 }
 export async function reviewTrade(db:Pool,owner:string,id:string,raw:unknown){
- z.uuid().parse(id);const {review}=z.strictObject({review:z.string().max(4000)}).parse(raw);
+ z.uuid().parse(id);const {review,tags}=parseReview(raw);
  await withOwner(db,owner,async c=>{
-  const result=await c.query('UPDATE core_trades SET review=$2 WHERE id=$1 RETURNING id',[id,review]);
+  const result=tags===undefined?await c.query('UPDATE core_trades SET review=$2 WHERE id=$1 RETURNING id',[id,review]):await c.query('UPDATE core_trades SET review=$2,tags=$3 WHERE id=$1 RETURNING id',[id,review,tags]);
   if(!result.rowCount)throw new PersistenceError(404,'Trade not found');
  });
 }
 export async function workbenchSnapshot(db:Pool,owner:string){
  return withOwner(db,owner,async c=>{
   const watchlist=(await c.query('SELECT id,data,status,revision,created_at FROM core_watchlist ORDER BY created_at DESC LIMIT 500')).rows;
-  const trades=(await c.query("SELECT t.id,t.data,t.review,t.watchlist_id,t.created_at,t.closed_at,coalesce((SELECT jsonb_agg(jsonb_build_object('data',e.data,'created_at',e.created_at) ORDER BY e.created_at,e.id) FROM core_exits e WHERE e.trade_id=t.id),'[]'::jsonb) exits FROM core_trades t ORDER BY t.created_at DESC LIMIT 500")).rows;
+  const trades=(await c.query("SELECT t.id,t.data,t.review,t.tags,t.watchlist_id,t.created_at,t.closed_at,coalesce((SELECT jsonb_agg(jsonb_build_object('data',e.data,'created_at',e.created_at) ORDER BY e.created_at,e.id) FROM core_exits e WHERE e.trade_id=t.id),'[]'::jsonb) exits FROM core_trades t ORDER BY t.created_at DESC LIMIT 500")).rows;
   const prefs=(await c.query('SELECT data FROM core_preferences')).rows[0]?.data??defaultPreferences;
   return {watchlist,preferences:prefs,trades:trades.map(t=>({...t,summary:positionSummary(t.data,t.exits.map((e:any)=>e.data))}))};
  });

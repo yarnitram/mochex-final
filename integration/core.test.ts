@@ -22,6 +22,17 @@ test('C-01/02/03/04: watchlist to partial/full exit to journal persists once',as
  assert.ok(stored.closed_at);assert.equal(stored.review,'Followed the plan');
  assert.equal((await workbenchSnapshot(db,b)).trades.some(t=>t.id===trade),false);
 });
+test('J-03: review tags persist and remain owner isolated',async()=>{
+ const id=await createManualTrade(db,a,{...plan,requestId:randomUUID(),margin:'100',leverage:'1',entryFee:'0'});
+ await recordExit(db,a,id,{requestId:randomUUID(),quantity:'1',price:'105',fee:'0'});
+ await reviewTrade(db,a,id,{review:'Followed exit plan',tags:['patience','risk-control']});
+ assert.deepEqual((await workbenchSnapshot(db,a)).trades.find(t=>t.id===id)!.tags,['patience','risk-control']);
+ await reviewTrade(db,a,id,{review:'Updated from an older client'});
+ assert.deepEqual((await workbenchSnapshot(db,a)).trades.find(t=>t.id===id)!.tags,['patience','risk-control']);
+ assert.equal((await workbenchSnapshot(db,b)).trades.some(t=>t.id===id),false);
+ await assert.rejects(()=>reviewTrade(db,b,id,{review:'spoof',tags:['late']}),/not found/i);
+ assert.deepEqual((await workbenchSnapshot(db,a)).trades.find(t=>t.id===id)!.tags,['patience','risk-control']);
+});
 test('C-01: optimistic edits and reversible archive',async()=>{
  const id=await createWatch(db,a,{...plan,requestId:randomUUID()});
  await changeWatch(db,a,id,{action:'edit',revision:0,plan:{...plan,notes:'Updated thesis'}});

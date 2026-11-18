@@ -1,0 +1,7 @@
+.core-journal-tools{display:flex;align-items:end;gap:18px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid #253647;color:#9bb4c8;font-size:11px}
+.core-journal-tools label{display:grid;gap:5px}
+.core-journal-tools select{min-width:130px;background:#101f2b;border:1px solid #354e61;border-radius:4px;padding:8px;color:#bdd3e1}
+.core-journal-summary{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.core-journal-summary b{color:#e6edf4}
+.core-journal-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px}
+.core-journal-tags em{font-size:9px;font-style:normal;color:#91dec2;background:#18372f;border:1px solid #2b4e42;border-radius:3px;padding:3px 5px}
