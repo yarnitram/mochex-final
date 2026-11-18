@@ -168,3 +168,25 @@ export function performDrawingRedo(state: DrawingHistoryState): DrawingHistorySt
 
 
 export const historyPush=pushDrawingHistory,historyUndo=performDrawingUndo,historyRedo=performDrawingRedo;
+
+type Point={x:number,y:number};
+export function hitDrawing(d:Drawing,p:Point,ends:{start:Point,end:Point},width:number,tolerance=8):boolean{
+ if(d.hidden)return false;
+ const a=ends.start,b=ends.end;
+ if(d.type==='horizontal_line')return Math.abs(p.y-a.y)<=tolerance&&p.x>=0&&p.x<=width;
+ if(d.type==='rectangle'){
+  const left=Math.min(a.x,b.x),right=Math.max(a.x,b.x),top=Math.min(a.y,b.y),bottom=Math.max(a.y,b.y);
+  return p.x>=left-tolerance&&p.x<=right+tolerance&&p.y>=top-tolerance&&p.y<=bottom+tolerance&&(
+   Math.abs(p.x-left)<=tolerance||Math.abs(p.x-right)<=tolerance||Math.abs(p.y-top)<=tolerance||Math.abs(p.y-bottom)<=tolerance);
+ }
+ if(d.type==='fib')return p.x>=Math.min(a.x,b.x)-tolerance&&p.x<=Math.max(a.x,b.x)+tolerance&&calculateFibLevels(d.startPrice,d.endPrice).some(l=>{
+  const ratio=(l.price-d.startPrice)/(d.endPrice-d.startPrice||1);return Math.abs(p.y-(a.y+(b.y-a.y)*ratio))<=tolerance;
+ });
+ const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy,t=length?(p.x-a.x)*dx/length+(p.y-a.y)*dy/length:0;
+ return t>=0&&t<=1&&Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy))<=tolerance;
+}
+export function moveDrawing(d:Drawing,seconds:number,priceDelta:number):Drawing|null{
+ if(d.locked||!Number.isInteger(seconds)||!Number.isFinite(priceDelta))return null;
+ const next={...d,startTime:d.startTime+seconds,endTime:d.endTime+seconds,startPrice:d.startPrice+priceDelta,endPrice:d.endPrice+priceDelta};
+ return drawingSchema.safeParse(next).success?next:null;
+}

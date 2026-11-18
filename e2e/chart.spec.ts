@@ -12,6 +12,12 @@ test('A-01..07: draw/edit/undo, save layout, indicators, reload and conflicting 
  await page.getByRole('button',{name:'Horizontal line',exact:true}).click();await page.getByTestId('price-chart').click({position:{x:180,y:180}});
  await expect(page.getByText('Objects (1)',{exact:true})).toBeVisible();
  await page.getByLabel('Drawing name',{exact:true}).fill('Support');await page.getByRole('button',{name:'Apply drawing changes',exact:true}).click();
+ const beforeDrag=await page.getByLabel('start price',{exact:true}).inputValue();
+ const box=await page.getByTestId('price-chart').boundingBox();expect(box).not.toBeNull();
+ await page.mouse.move(box!.x+180,box!.y+180);await page.mouse.down();await page.mouse.move(box!.x+210,box!.y+200,{steps:8});await page.mouse.up();
+ await expect.poll(async()=>page.getByLabel('start price',{exact:true}).inputValue()).not.toBe(beforeDrag);
+ await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(page.getByLabel('start price',{exact:true})).toHaveValue(beforeDrag);
+ await page.getByRole('button',{name:'Redo',exact:true}).click();await expect.poll(async()=>page.getByLabel('start price',{exact:true}).inputValue()).not.toBe(beforeDrag);
  await page.getByRole('button',{name:'Lock Support',exact:true}).click();await expect(page.getByRole('button',{name:'Delete Support',exact:true})).toBeDisabled();
  await page.getByRole('button',{name:'Unlock Support',exact:true}).click();
  await page.getByRole('button',{name:'Hide Support',exact:true}).click();await page.getByRole('button',{name:'Show Support',exact:true}).click();

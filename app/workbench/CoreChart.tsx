@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import {createChart,CandlestickSeries,HistogramSeries,LineSeries,ColorType,CrosshairMode,LineStyle,type UTCTimestamp,type ISeriesApi,type IChartApi,type AutoscaleInfo} from 'lightweight-charts';
 import {calculateEma,type EmaPeriod} from '../../src/core/chart/ema';
 import {calculatePricePrecision} from '../../src/core/chart/price-precision';
-import {drawingSchema,calculateFibLevels,extrapolateCoordinateToTime,extrapolateTimeToCoordinate,sma,rsi,type Drawing} from '../../src/core/chart/workspace';
+import {drawingSchema,calculateFibLevels,extrapolateCoordinateToTime,extrapolateTimeToCoordinate,sma,rsi,hitDrawing,moveDrawing,type Drawing} from '../../src/core/chart/workspace';
 import type {Candle} from '../../src/core/market';
 import {useChartLayout} from './useChartLayout';
 import ChartObjects from './ChartObjects';
@@ -15,6 +15,7 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
  const layout=useChartLayout(symbol,timeframe),doc=layout.document;
  const [tool,setTool]=useState<Tool>('cursor'),[start,setStart]=useState<{time:number,price:number}|null>(null),[selected,setSelected]=useState<string|null>(null);
  const [error,setError]=useState(''),[feed,setFeed]=useState<{close:number,time:string}|null>(null),[loading,setLoading]=useState(true);
+ const drag=useRef<{id:string,start:{x:number,y:number,time:number,price:number},original:Drawing,moved:boolean}|null>(null);
  const current=useRef({doc,tool,start,selected,layout});current.current={doc,tool,start,selected,layout};
  useEffect(()=>{onDirty?.(layout.dirty);},[layout.dirty,onDirty]);
  useEffect(()=>{setTool('cursor');setStart(null);setSelected(null);},[symbol,timeframe]);
@@ -38,6 +39,38 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
    const x=chart.timeScale().timeToCoordinate(last.time as UTCTimestamp),px=chart.timeScale().timeToCoordinate(prev.time as UTCTimestamp);return x===null||px===null?null:{last:last.time,x,spacing:Math.abs(x-px)};
   }
   function tx(time:number){const exact=chart.timeScale().timeToCoordinate(time as UTCTimestamp);if(exact!==null)return exact;const a=anchor();return a?extrapolateTimeToCoordinate(time,a.last,a.x,a.spacing,duration):null;}
+  function pointAt(e:PointerEvent){
+   const bounds=target!.getBoundingClientRect(),x=e.clientX-bounds.left,y=e.clientY-bounds.top;
+   if(x<0||x>chart.timeScale().width()||y<0||y>(chart.panes()[0]?.getHeight()??0))return null;
+   const a=anchor(),native=chart.timeScale().coordinateToTime(x),time=typeof native==='number'?native:a?extrapolateCoordinateToTime(x,a.last,a.x,a.spacing,duration):null,price=candles.coordinateToPrice(y);
+   return time===null||price===null?null:{x,y,time:Math.round(time),price:Number(price)};
+  }
+  function pointerDown(e:PointerEvent){
+   if(current.current.tool!=='cursor'||!current.current.layout.loaded||current.current.layout.saving)return;
+   const p=pointAt(e);if(!p)return;
+   for(const d of [...current.current.doc.drawings].reverse()){
+    const x1=tx(d.startTime),x2=tx(d.endTime),y1=candles.priceToCoordinate(d.startPrice),y2=candles.priceToCoordinate(d.endPrice);
+    if(x1===null||x2===null||y1===null||y2===null)continue;
+    if(hitDrawing(d,p,{start:{x:x1,y:y1},end:{x:x2,y:y2}},chart.timeScale().width())){
+     setSelected(d.id);
+     if(!d.locked){drag.current={id:d.id,start:p,original:d,moved:false};chart.applyOptions({handleScroll:false,handleScale:false});target!.setPointerCapture(e.pointerId);}
+     return;
+    }
+   }
+   setSelected(null);
+  }
+  function pointerMove(e:PointerEvent){
+   const active=drag.current;if(!active)return;const p=pointAt(e);if(!p)return;
+   if(Math.hypot(p.x-active.start.x,p.y-active.start.y)>3)active.moved=true;
+  }
+  function pointerCancel(){drag.current=null;chart.applyOptions({handleScroll:true,handleScale:true});}
+  function pointerUp(e:PointerEvent){
+   const active=drag.current;drag.current=null;if(!active)return;chart.applyOptions({handleScroll:true,handleScale:true});if(!active.moved)return;
+   const p=pointAt(e);if(!p)return;
+   const moved=moveDrawing(active.original,p.time-active.start.time,p.price-active.start.price);
+   if(moved)current.current.layout.drawings(current.current.doc.drawings.map(d=>d.id===active.id?moved:d));
+   else setError('Drawing cannot move beyond valid time or positive price.');
+  }
   function drawingPointer(e:PointerEvent){
    const s=current.current;if(s.tool==='cursor'||!s.layout.loaded||s.layout.saving||!barsRef.current.length)return;
    const bounds=target!.getBoundingClientRect(),pointX=e.clientX-bounds.left,pointY=e.clientY-bounds.top;
@@ -52,7 +85,7 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
     s.layout.drawings([...s.doc.drawings,drawing]);setSelected(drawing.id);setTool('cursor');setStart(null);setError('');
    }catch{setError('Choose two distinct candle times and positive price levels.');setStart(null);}
   }
-  target.addEventListener('pointerup',drawingPointer);
+  target.addEventListener('pointerdown',pointerDown);target.addEventListener('pointermove',pointerMove);target.addEventListener('pointercancel',pointerCancel);target.addEventListener('pointerup',pointerUp);target.addEventListener('pointerup',drawingPointer);
   let dead=false,frame=0,initial=true;const controller=new AbortController();
   function draw(){
    if(dead)return;const canvas=overlay.current,ctx=canvas?.getContext('2d');if(canvas&&ctx){
@@ -88,7 +121,7 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
    }catch(e){if(!dead)setError(e instanceof Error?e.message:'Market data unavailable');}finally{if(!dead)setLoading(false);}
   }
   void load();draw();const interval=setInterval(()=>void load(),15000);
-  return()=>{dead=true;target.removeEventListener('pointerup',drawingPointer);controller.abort();clearInterval(interval);cancelAnimationFrame(frame);emaRefs.current={};smaRefs.current={};rsiRef.current=null;volumeRef.current=null;api.current=null;chart.remove();};
+  return()=>{dead=true;drag.current=null;target.removeEventListener('pointerdown',pointerDown);target.removeEventListener('pointermove',pointerMove);target.removeEventListener('pointercancel',pointerCancel);target.removeEventListener('pointerup',pointerUp);target.removeEventListener('pointerup',drawingPointer);controller.abort();clearInterval(interval);cancelAnimationFrame(frame);emaRefs.current={};smaRefs.current={};rsiRef.current=null;volumeRef.current=null;api.current=null;chart.remove();};
  },[symbol,timeframe,layout.loaded,levels?.entry,levels?.stop,levels?.target]);
  useEffect(()=>{
   for(const [p,series] of Object.entries(emaRefs.current))series.applyOptions({visible:doc.ema.includes(Number(p) as EmaPeriod)});
