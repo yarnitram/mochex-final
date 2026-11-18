@@ -1,0 +1,122 @@
+{
+  "instrument": {
+    "schemaVersion": 1,
+    "exchange": "mexc",
+    "market": "perpetual",
+    "nativeSymbol": "BTC_USDT",
+    "base": "BTC",
+    "quote": "USDT",
+    "settlement": "USDT",
+    "contractMultiplier": "1"
+  },
+  "signal": {
+    "schemaVersion": 1,
+    "sourceId": "fixture-mochbot",
+    "sourceEventId": "setup-001",
+    "instrument": {
+      "schemaVersion": 1,
+      "exchange": "mexc",
+      "market": "perpetual",
+      "nativeSymbol": "BTC_USDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "settlement": "USDT",
+      "contractMultiplier": "1"
+    },
+    "strategyId": "MOD-01E",
+    "strategyVersion": "271cc54",
+    "configurationVersion": "fixture-v1",
+    "timeframe": "1m",
+    "candleOpenTime": "2026-11-18T00:00:00.000Z",
+    "observedAt": "2026-11-18T00:01:00.000Z",
+    "emittedAt": "2026-11-18T00:01:01.000Z",
+    "expiresAt": "2026-11-18T00:16:00.000Z",
+    "maxAgeSeconds": 120,
+    "evidence": {
+      "kind": "synthetic",
+      "reference": "m0-golden-v1"
+    }
+  },
+  "setup": {
+    "schemaVersion": 1,
+    "id": "setup-001",
+    "ownerId": "owner-a",
+    "signalKey": "[\"fixture-mochbot\",\"setup-001\"]",
+    "instrument": {
+      "schemaVersion": 1,
+      "exchange": "mexc",
+      "market": "perpetual",
+      "nativeSymbol": "BTC_USDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "settlement": "USDT",
+      "contractMultiplier": "1"
+    },
+    "state": "detected",
+    "revision": 0,
+    "monitorOwner": "terminal",
+    "updatedAt": "2026-11-18T00:01:01.000Z"
+  },
+  "fill": {
+    "schemaVersion": 1,
+    "sourceId": "fixture-mochbot",
+    "sourceFillId": "entry",
+    "tradeId": "trade-001",
+    "ownerId": "owner-a",
+    "instrument": {
+      "schemaVersion": 1,
+      "exchange": "mexc",
+      "market": "perpetual",
+      "nativeSymbol": "BTC_USDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "settlement": "USDT",
+      "contractMultiplier": "1"
+    },
+    "provenance": "simulated",
+    "kind": "entry",
+    "quantity": "10",
+    "price": "100",
+    "fee": "0",
+    "feeCurrency": "USDT",
+    "occurredAt": "2026-11-18T00:01:00.000Z"
+  },
+  "journal": {
+    "schemaVersion": 1,
+    "tradeId": "trade-001",
+    "ownerId": "owner-a",
+    "instrument": {
+      "schemaVersion": 1,
+      "exchange": "mexc",
+      "market": "perpetual",
+      "nativeSymbol": "BTC_USDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "settlement": "USDT",
+      "contractMultiplier": "1"
+    },
+    "side": "long",
+    "provenance": "simulated",
+    "fillKeys": [
+      "[\"fixture-mochbot\",\"entry\"]",
+      "[\"fixture-mochbot\",\"tp1\"]",
+      "[\"fixture-mochbot\",\"be\"]"
+    ],
+    "remainingQuantity": "0",
+    "grossPnl": "30",
+    "fees": "0",
+    "netPnl": "30",
+    "initialRisk": "20",
+    "rMultiple": "1.5"
+  },
+  "delivery": {
+    "schemaVersion": 1,
+    "id": "delivery-001",
+    "eventKey": "[\"fixture-mochbot\",\"setup-001\"]",
+    "ownerId": "owner-a",
+    "channel": "dry-run",
+    "attempt": 1,
+    "status": "queued",
+    "updatedAt": "2026-11-18T00:01:01.000Z"
+  }
+}

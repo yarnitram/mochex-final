@@ -1,0 +1,6 @@
+{
+ "extends":"./tsconfig.json",
+ "compilerOptions":{"noEmit":true,"module":"esnext","moduleResolution":"bundler","jsx":"preserve","incremental":true,"plugins":[{"name":"next"}],"declaration":false},
+ "include":["next-env.d.ts","app/**/*.ts","app/**/*.tsx","src/**/*.ts",".next/types/**/*.ts"],
+ "exclude":["node_modules"]
+}

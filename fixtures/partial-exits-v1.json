@@ -1,0 +1,106 @@
+{
+  "side": "long",
+  "initialRisk": "20",
+  "fills": [
+    {
+      "schemaVersion": 1,
+      "sourceId": "fixture-mochbot",
+      "sourceFillId": "entry",
+      "tradeId": "trade-001",
+      "ownerId": "owner-a",
+      "instrument": {
+        "schemaVersion": 1,
+        "exchange": "mexc",
+        "market": "perpetual",
+        "nativeSymbol": "BTC_USDT",
+        "base": "BTC",
+        "quote": "USDT",
+        "settlement": "USDT",
+        "contractMultiplier": "1"
+      },
+      "provenance": "simulated",
+      "kind": "entry",
+      "quantity": "10",
+      "price": "100",
+      "fee": "0",
+      "feeCurrency": "USDT",
+      "occurredAt": "2026-11-18T00:01:00.000Z"
+    },
+    {
+      "schemaVersion": 1,
+      "sourceId": "fixture-mochbot",
+      "sourceFillId": "tp1",
+      "tradeId": "trade-001",
+      "ownerId": "owner-a",
+      "instrument": {
+        "schemaVersion": 1,
+        "exchange": "mexc",
+        "market": "perpetual",
+        "nativeSymbol": "BTC_USDT",
+        "base": "BTC",
+        "quote": "USDT",
+        "settlement": "USDT",
+        "contractMultiplier": "1"
+      },
+      "provenance": "simulated",
+      "kind": "exit",
+      "quantity": "5",
+      "price": "106",
+      "fee": "0",
+      "feeCurrency": "USDT",
+      "occurredAt": "2026-11-18T00:02:00.000Z"
+    },
+    {
+      "schemaVersion": 1,
+      "sourceId": "fixture-mochbot",
+      "sourceFillId": "be",
+      "tradeId": "trade-001",
+      "ownerId": "owner-a",
+      "instrument": {
+        "schemaVersion": 1,
+        "exchange": "mexc",
+        "market": "perpetual",
+        "nativeSymbol": "BTC_USDT",
+        "base": "BTC",
+        "quote": "USDT",
+        "settlement": "USDT",
+        "contractMultiplier": "1"
+      },
+      "provenance": "simulated",
+      "kind": "exit",
+      "quantity": "5",
+      "price": "100",
+      "fee": "0",
+      "feeCurrency": "USDT",
+      "occurredAt": "2026-11-18T00:03:00.000Z"
+    }
+  ],
+  "expected": {
+    "schemaVersion": 1,
+    "tradeId": "trade-001",
+    "ownerId": "owner-a",
+    "instrument": {
+      "schemaVersion": 1,
+      "exchange": "mexc",
+      "market": "perpetual",
+      "nativeSymbol": "BTC_USDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "settlement": "USDT",
+      "contractMultiplier": "1"
+    },
+    "side": "long",
+    "provenance": "simulated",
+    "fillKeys": [
+      "[\"fixture-mochbot\",\"entry\"]",
+      "[\"fixture-mochbot\",\"tp1\"]",
+      "[\"fixture-mochbot\",\"be\"]"
+    ],
+    "remainingQuantity": "0",
+    "grossPnl": "30",
+    "fees": "0",
+    "netPnl": "30",
+    "initialRisk": "20",
+    "rMultiple": "1.5"
+  }
+}
