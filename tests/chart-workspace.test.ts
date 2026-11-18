@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {layoutSchema,defaultLayout,historyPush,historyUndo,historyRedo,calculateFibLevels,sma,rsi,hitDrawing,moveDrawing} from '../src/core/chart/workspace.js';
+import {layoutSchema,defaultLayout,historyPush,historyUndo,historyRedo,calculateFibLevels,sma,rsi,hitDrawing,moveDrawing,resizeDrawingAnchor} from '../src/core/chart/workspace.js';
 const drawing=(price=100)=>({id:randomUUID(),type:'horizontal_line' as const,startTime:1795000000,endTime:1795000000,startPrice:price,endPrice:price,color:'#58d6af',name:'Level',hidden:false,locked:false});
 test('A-01/04: strict UTC-second chart documents reject duplicate IDs and invalid geometry',()=>{
  const d=drawing();assert.equal(layoutSchema.parse({...defaultLayout,drawings:[d]}).drawings.length,1);
@@ -40,4 +40,14 @@ test('B-01: hit testing respects visibility and moves both anchors as one undoab
  assert.equal(moved.startPrice,105);assert.equal(moved.endPrice,115);
  assert.equal(moveDrawing({...line,locked:true},900,5),null);
  assert.equal(moveDrawing(line,0,-200),null);
+});
+test('C3-01: endpoint editing changes one anchor and rejects invalid or locked geometry',()=>{
+ const d={...drawing(),type:'trendline' as const,endTime:1795000900,endPrice:110};
+ const moved=resizeDrawingAnchor(d,'start',1795000300,95);
+ assert.ok(moved);assert.equal(moved.startTime,1795000300);assert.equal(moved.startPrice,95);
+ assert.equal(moved.endTime,d.endTime);assert.equal(moved.endPrice,d.endPrice);
+ assert.equal(resizeDrawingAnchor(d,'start',d.endTime,95),null);
+ assert.equal(resizeDrawingAnchor(d,'end',d.endTime,0),null);
+ assert.equal(resizeDrawingAnchor({...d,locked:true},'start',1795000300,95),null);
+ assert.equal(resizeDrawingAnchor({...d,type:'horizontal_line'},'start',1795000300,95),null);
 });

@@ -190,3 +190,8 @@ export function moveDrawing(d:Drawing,seconds:number,priceDelta:number):Drawing|
  const next={...d,startTime:d.startTime+seconds,endTime:d.endTime+seconds,startPrice:d.startPrice+priceDelta,endPrice:d.endPrice+priceDelta};
  return drawingSchema.safeParse(next).success?next:null;
 }
+export function resizeDrawingAnchor(d:Drawing,anchor:'start'|'end',time:number,newPrice:number):Drawing|null{
+ if(d.locked||d.type==='horizontal_line')return null;
+ const next={...d,[anchor+'Time']:time,[anchor+'Price']:newPrice};
+ return drawingSchema.safeParse(next).success?next:null;
+}

@@ -25,6 +25,14 @@ test('A-01..07: draw/edit/undo, save layout, indicators, reload and conflicting 
   await page.getByRole('button',{name:tool,exact:true}).click();await page.getByTestId('price-chart').click({position:{x:300,y:130}});await page.getByTestId('price-chart').click({position:{x:520,y:290}});
  }
  await expect(page.getByText('Objects (4)',{exact:true})).toBeVisible();
+ const startBefore=await page.getByLabel('start price',{exact:true}).inputValue(),endBefore=await page.getByLabel('end price',{exact:true}).inputValue();
+ const chartBox=await page.getByTestId('price-chart').boundingBox();expect(chartBox).not.toBeNull();
+ await page.mouse.move(chartBox!.x+300,chartBox!.y+130);await page.mouse.down();await page.mouse.move(chartBox!.x+330,chartBox!.y+150,{steps:8});await page.mouse.up();
+ await expect.poll(async()=>page.getByLabel('start price',{exact:true}).inputValue()).not.toBe(startBefore);
+ await expect(page.getByLabel('end price',{exact:true})).toHaveValue(endBefore);
+ await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(page.getByLabel('start price',{exact:true})).toHaveValue(startBefore);
+ await page.getByRole('button',{name:'Redo',exact:true}).click();await expect.poll(async()=>page.getByLabel('start price',{exact:true}).inputValue()).not.toBe(startBefore);
+ await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(page.getByLabel('start price',{exact:true})).toHaveValue(startBefore);
  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(page.getByText('Objects (3)',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Redo',exact:true}).click();await expect(page.getByText('Objects (4)',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'SMA 20',exact:true}).click();await page.getByRole('button',{name:'RSI 14',exact:true}).click();

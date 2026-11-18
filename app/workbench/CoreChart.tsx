@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import {createChart,CandlestickSeries,HistogramSeries,LineSeries,ColorType,CrosshairMode,LineStyle,type UTCTimestamp,type ISeriesApi,type IChartApi,type AutoscaleInfo} from 'lightweight-charts';
 import {calculateEma,type EmaPeriod} from '../../src/core/chart/ema';
 import {calculatePricePrecision} from '../../src/core/chart/price-precision';
-import {drawingSchema,calculateFibLevels,extrapolateCoordinateToTime,extrapolateTimeToCoordinate,sma,rsi,hitDrawing,moveDrawing,type Drawing} from '../../src/core/chart/workspace';
+import {drawingSchema,calculateFibLevels,extrapolateCoordinateToTime,extrapolateTimeToCoordinate,sma,rsi,hitDrawing,moveDrawing,resizeDrawingAnchor,type Drawing} from '../../src/core/chart/workspace';
 import type {Candle} from '../../src/core/market';
 import {useChartLayout} from './useChartLayout';
 import ChartObjects from './ChartObjects';
@@ -15,7 +15,7 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
  const layout=useChartLayout(symbol,timeframe),doc=layout.document;
  const [tool,setTool]=useState<Tool>('cursor'),[start,setStart]=useState<{time:number,price:number}|null>(null),[selected,setSelected]=useState<string|null>(null);
  const [error,setError]=useState(''),[feed,setFeed]=useState<{close:number,time:string}|null>(null),[loading,setLoading]=useState(true);
- const drag=useRef<{id:string,start:{x:number,y:number,time:number,price:number},original:Drawing,moved:boolean}|null>(null);
+ const drag=useRef<{id:string,mode:'move'|'start'|'end',start:{x:number,y:number,time:number,price:number},original:Drawing,moved:boolean}|null>(null);
  const current=useRef({doc,tool,start,selected,layout});current.current={doc,tool,start,selected,layout};
  useEffect(()=>{onDirty?.(layout.dirty);},[layout.dirty,onDirty]);
  useEffect(()=>{setTool('cursor');setStart(null);setSelected(null);},[symbol,timeframe]);
@@ -48,12 +48,19 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
   function pointerDown(e:PointerEvent){
    if(current.current.tool!=='cursor'||!current.current.layout.loaded||current.current.layout.saving)return;
    const p=pointAt(e);if(!p)return;
+   const selectedDrawing=current.current.doc.drawings.find(d=>d.id===current.current.selected);
+   if(selectedDrawing&&!selectedDrawing.hidden&&!selectedDrawing.locked&&selectedDrawing.type!=='horizontal_line'){
+    const endpoints=[['start',selectedDrawing.startTime,selectedDrawing.startPrice],['end',selectedDrawing.endTime,selectedDrawing.endPrice]] as const;
+    for(const [mode,time,price] of endpoints){const x=tx(time),y=candles.priceToCoordinate(price);
+     if(x!==null&&y!==null&&Math.hypot(p.x-x,p.y-y)<=10){drag.current={id:selectedDrawing.id,mode,start:p,original:selectedDrawing,moved:false};chart.applyOptions({handleScroll:false,handleScale:false});target!.setPointerCapture(e.pointerId);return;}
+    }
+   }
    for(const d of [...current.current.doc.drawings].reverse()){
     const x1=tx(d.startTime),x2=tx(d.endTime),y1=candles.priceToCoordinate(d.startPrice),y2=candles.priceToCoordinate(d.endPrice);
     if(x1===null||x2===null||y1===null||y2===null)continue;
     if(hitDrawing(d,p,{start:{x:x1,y:y1},end:{x:x2,y:y2}},chart.timeScale().width())){
      setSelected(d.id);
-     if(!d.locked){drag.current={id:d.id,start:p,original:d,moved:false};chart.applyOptions({handleScroll:false,handleScale:false});target!.setPointerCapture(e.pointerId);}
+     if(!d.locked){drag.current={id:d.id,mode:'move',start:p,original:d,moved:false};chart.applyOptions({handleScroll:false,handleScale:false});target!.setPointerCapture(e.pointerId);}
      return;
     }
    }
@@ -67,9 +74,9 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
   function pointerUp(e:PointerEvent){
    const active=drag.current;drag.current=null;if(!active)return;chart.applyOptions({handleScroll:true,handleScale:true});if(!active.moved)return;
    const p=pointAt(e);if(!p)return;
-   const moved=moveDrawing(active.original,p.time-active.start.time,p.price-active.start.price);
+   const moved=active.mode==='move'?moveDrawing(active.original,p.time-active.start.time,p.price-active.start.price):resizeDrawingAnchor(active.original,active.mode,p.time,p.price);
    if(moved)current.current.layout.drawings(current.current.doc.drawings.map(d=>d.id===active.id?moved:d));
-   else setError('Drawing cannot move beyond valid time or positive price.');
+   else setError('Drawing cannot move beyond valid time or positive price, or share endpoint times.');
   }
   function drawingPointer(e:PointerEvent){
    const s=current.current;if(s.tool==='cursor'||!s.layout.loaded||s.layout.saving||!barsRef.current.length)return;
@@ -101,6 +108,7 @@ export default function CoreChart({symbol,timeframe,onTimeframe,levels,onDirty}:
      else if(d.type==='rectangle'){ctx.globalAlpha=.12;ctx.fillRect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));ctx.globalAlpha=1;ctx.strokeRect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));}
      else if(d.type==='fib'){for(const level of calculateFibLevels(d.startPrice,d.endPrice)){const y=candles.priceToCoordinate(level.price);if(y===null)continue;ctx.beginPath();ctx.moveTo(Math.min(x1,x2),y);ctx.lineTo(Math.max(x1,x2),y);ctx.stroke();ctx.fillText(level.ratio+' · '+level.price.toLocaleString('en-US',{maximumFractionDigits:8}),Math.min(x1,x2)+4,y-4);}}
      else{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+     if(d.id===state.selected&&d.type!=='horizontal_line')for(const [x,y] of [[x1,y1],[x2,y2]] as [number,number][]){ctx.setLineDash([]);ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fillStyle=d.locked?'#7f8a99':'#ffffff';ctx.fill();ctx.strokeStyle=d.color;ctx.stroke();}
     }
     if(state.start){const x=tx(state.start.time),y=candles.priceToCoordinate(state.start.price);if(x!==null&&y!==null){ctx.setLineDash([]);ctx.fillStyle='#f5ac37';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();}}
    }frame=requestAnimationFrame(draw);
