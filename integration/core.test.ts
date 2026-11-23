@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { createWatch,openWatch,recordExit,workbenchSnapshot,changeWatch,reviewTrade,createManualTrade } from '../src/core/store.js';
 import { withOwner } from '../src/server/store.js';
+import {addTradeImage,readTradeImage,removeTradeImage} from '../src/core/journal-images.js';
+import {exportJournal,importJournal} from '../src/core/journal-transfer.js';
 const db=new Pool({connectionString:process.env.DATABASE_URL!}),admin=new Pool({connectionString:process.env.TEST_ADMIN_DATABASE_URL!});
 const a=process.env.FIXTURE_A_ID!,b=process.env.FIXTURE_B_ID!;
 const plan={symbol:'BTC_USDT',side:'long',entry:'100',stop:'98',target:'110',trigger:'100',timeframe:'15m',strategy:'Pullback',notes:'Synthetic fixture'};
@@ -32,6 +34,34 @@ test('J-03: review tags persist and remain owner isolated',async()=>{
  assert.equal((await workbenchSnapshot(db,b)).trades.some(t=>t.id===id),false);
  await assert.rejects(()=>reviewTrade(db,b,id,{review:'spoof',tags:['late']}),/not found/i);
  assert.deepEqual((await workbenchSnapshot(db,a)).trades.find(t=>t.id===id)!.tags,['patience','risk-control']);
+});
+test('J-05: screenshot bytes are private, bounded and attached only to a closed trade',async()=>{
+ const id=await createManualTrade(db,a,{...plan,requestId:randomUUID(),margin:'100',leverage:'1',entryFee:'0'});
+ const png=Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000b49444154789c636000020000050001a5f645400000000049454e44ae426082','hex');
+ await assert.rejects(()=>addTradeImage(db,a,id,'image/png',png),/closed/i);
+ await recordExit(db,a,id,{requestId:randomUUID(),quantity:'1',price:'105',fee:'0'});
+ const imageId=await addTradeImage(db,a,id,'image/png',png);
+ assert.deepEqual((await readTradeImage(db,a,imageId)).bytes,png);
+ await assert.rejects(()=>readTradeImage(db,b,imageId),/not found/i);
+ await assert.rejects(()=>addTradeImage(db,a,id,'image/png',Buffer.from('not an image')),/image/i);
+ await addTradeImage(db,a,id,'image/png',png);await addTradeImage(db,a,id,'image/png',png);
+ await assert.rejects(()=>addTradeImage(db,a,id,'image/png',png),/three screenshots/i);
+ await removeTradeImage(db,a,imageId);
+ await assert.rejects(()=>readTradeImage(db,a,imageId),/not found/i);
+});
+test('J-09: EXMOCHEX review import previews, reconciles and never writes ledger events',async()=>{
+ const id=await createManualTrade(db,a,{...plan,requestId:randomUUID(),margin:'100',leverage:'1',entryFee:'0'});
+ await recordExit(db,a,id,{requestId:randomUUID(),quantity:'1',price:'105',fee:'0'});
+ const own=(await workbenchSnapshot(db,a)).trades.find(t=>t.id===id)!;
+ const day=new Date(own.closed_at).toISOString().slice(0,10),csv='Date,Symbol,Side,Entry,P&L ($),Tags,Notes,Trade ID\n'+[day,'BTC_USDT','long','100','5','patience','Followed plan',id].join(',')+'\n';
+ assert.equal((await importJournal(db,a,csv,false)).rows[0]?.status,'ready');
+ assert.equal((await importJournal(db,b,csv,false)).rows[0]?.status,'unmatched');
+ const applied=await importJournal(db,a,csv,true);assert.equal(applied.applied,1);assert.equal(applied.rows[0]?.status,'applied');
+ assert.equal((await importJournal(db,a,csv,true)).rows[0]?.status,'reviewed');
+ const after=(await workbenchSnapshot(db,a)).trades.find(t=>t.id===id)!;
+ assert.equal(after.review,'Followed plan');assert.deepEqual(after.tags,['patience']);assert.equal(after.exits.length,1);assert.equal(after.summary.net,'5');
+ assert.match(await exportJournal(db,a),/Followed plan/);
+ assert.doesNotMatch(await exportJournal(db,b),new RegExp(id));
 });
 test('C-01: optimistic edits and reversible archive',async()=>{
  const id=await createWatch(db,a,{...plan,requestId:randomUUID()});

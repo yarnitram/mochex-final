@@ -86,7 +86,7 @@ export async function reviewTrade(db:Pool,owner:string,id:string,raw:unknown){
 export async function workbenchSnapshot(db:Pool,owner:string){
  return withOwner(db,owner,async c=>{
   const watchlist=(await c.query('SELECT id,data,status,revision,created_at FROM core_watchlist ORDER BY created_at DESC LIMIT 500')).rows;
-  const trades=(await c.query("SELECT t.id,t.data,t.review,t.tags,t.watchlist_id,t.created_at,t.closed_at,coalesce((SELECT jsonb_agg(jsonb_build_object('data',e.data,'created_at',e.created_at) ORDER BY e.created_at,e.id) FROM core_exits e WHERE e.trade_id=t.id),'[]'::jsonb) exits FROM core_trades t ORDER BY t.created_at DESC LIMIT 500")).rows;
+  const trades=(await c.query("SELECT t.id,t.data,t.review,t.tags,t.watchlist_id,t.created_at,t.closed_at,coalesce((SELECT jsonb_agg(jsonb_build_object('data',e.data,'created_at',e.created_at) ORDER BY e.created_at,e.id) FROM core_exits e WHERE e.trade_id=t.id),'[]'::jsonb) exits,coalesce((SELECT jsonb_agg(jsonb_build_object('id',i.id,'mime',i.mime,'created_at',i.created_at) ORDER BY i.created_at,i.id) FROM core_trade_images i WHERE i.trade_id=t.id),'[]'::jsonb) images FROM core_trades t ORDER BY t.created_at DESC LIMIT 500")).rows;
   const prefs=(await c.query('SELECT data FROM core_preferences')).rows[0]?.data??defaultPreferences;
   return {watchlist,preferences:prefs,trades:trades.map(t=>({...t,summary:positionSummary(t.data,t.exits.map((e:any)=>e.data))}))};
  });

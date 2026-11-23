@@ -12,7 +12,7 @@ const a=process.env.FIXTURE_A_ID!,b=process.env.FIXTURE_B_ID!;
 after(async()=>{await db.end();await admin.end();});
 test('S2-01: ordered migrations preserve S1 rows and have stable checksums',async()=>{
  const rows=await admin.query('select version,digest from terminal_migrations order by version');
- assert.deepEqual(rows.rows.map(r=>r.version),[1,2,3,4,5,6,7]);
+ assert.deepEqual(rows.rows.map(r=>r.version),[1,2,3,4,5,6,7,8]);
  assert.ok(rows.rows.every(r=>r.digest.length===64));
  assert.equal((await admin.query('select count(*) from workspace_items')).rows[0].count,'2');
 });

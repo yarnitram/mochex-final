@@ -21,3 +21,18 @@ export function journalSummary(rows:JournalRow[]){
  const wins=rows.filter(r=>new Money(r.summary.net).gt(0)).length;
  return {count:rows.length,wins,net:net.toFixed(),averageR:rows.length?rSum.div(rows.length).toDecimalPlaces(2).toFixed():'0',winRate:rows.length?Math.round(wins/rows.length*100):0};
 }
+export function journalTimeline<T extends JournalRow&{id:string}>(rows:T[]){
+ let balance=new Money(0);
+ return rows.filter(r=>r.closed_at).sort((a,b)=>a.closed_at!.localeCompare(b.closed_at!)||a.id.localeCompare(b.id)).map(r=>{
+  balance=balance.plus(r.summary.net);
+  return {id:r.id,day:r.closed_at!.slice(0,10),net:r.summary.net,equity:balance.toFixed()};
+ });
+}
+export function calendarDays<T extends JournalRow&{id:string}>(rows:T[]){
+ const days=new Map<string,{day:string,net:InstanceType<typeof Money>,count:number}>();
+ for(const item of journalTimeline(rows)){
+  const prior=days.get(item.day)??{day:item.day,net:new Money(0),count:0};
+  prior.net=prior.net.plus(item.net);prior.count++;days.set(item.day,prior);
+ }
+ return [...days.values()].map(x=>({day:x.day,net:x.net.toFixed(),count:x.count}));
+}

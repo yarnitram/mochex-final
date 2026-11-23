@@ -1,7 +1,7 @@
 import type { Pool } from 'pg';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-const migrations=['001_workspace.sql','002_signals.sql','003_observations.sql','004_core_workspace.sql','005_core_market.sql','006_chart_layout.sql','007_journal_tags.sql'];
+const migrations=['001_workspace.sql','002_signals.sql','003_observations.sql','004_core_workspace.sql','005_core_market.sql','006_chart_layout.sql','007_journal_tags.sql','008_journal_images.sql'];
 export async function migrate(pool:Pool,throughVersion=migrations.length):Promise<void>{
  if(!Number.isInteger(throughVersion)||throughVersion<1||throughVersion>migrations.length)throw Error('Unknown migration target');
  const client=await pool.connect();

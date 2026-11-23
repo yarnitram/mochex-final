@@ -21,7 +21,7 @@ Install the browser once with npx playwright install chromium. The verifier star
 
 Use a dedicated local PostgreSQL17 instance/database. Never point this prototype at an existing project database. Keep the instance bound to loopback and configure its credentials through your secret-management/process environment.
 
-Set ADMIN_DATABASE_URL for migrations and account provisioning. Run npm run db:migrate; this applies all checksummed migrations (001 workspace/auth,002 scanner/event/fill/outbox storage,003 observation lifecycle,004 manual core workspace,005 market preferences/monitor state/events,006 chart layouts) and creates terminal_runtime as a NOLOGIN role. A database administrator must provision a separate non-superuser/NOBYPASSRLS login with membership in terminal_runtime; use that restricted login in DATABASE_URL. Do not use the administrator URL for the web runtime.
+Set ADMIN_DATABASE_URL for migrations and account provisioning. Run npm run db:migrate; this applies all checksummed migrations (001 workspace/auth,002 scanner/event/fill/outbox storage,003 observation lifecycle,004 manual core workspace,005 market preferences/monitor state/events,006 chart layouts,007 journal tags,008 journal screenshot bytes) and creates terminal_runtime as a NOLOGIN role. A database administrator must provision a separate non-superuser/NOBYPASSRLS login with membership in terminal_runtime; use that restricted login in DATABASE_URL. Do not use the administrator URL for the web runtime.
 
 Set APP_ORIGIN=http://127.0.0.1:3021 and DATABASE_URL in a git-ignored .env file for Next. For CLI commands, pass settings through the process environment; the tsx scripts do not automatically load .env files. .env.example lists field names without credentials.
 
@@ -30,6 +30,8 @@ Set TERMINAL_ACCOUNT_EMAIL and TERMINAL_ACCOUNT_PASSWORD in the CLI process envi
 Start with npm run dev or npm run build followed by npm start. Both bind only to127.0.0.1:3021. Sign in with the provisioned account. There are no default credentials.
 
 Successful login opens /workbench: Watchlist / Trades / Journal / Charts. This is manual tracking; recorded entries/exits do not place exchange orders. Charts use public MEXC perpetual candles and visibly report unavailable/stale data. Earlier /workspace and scanner APIs remain preserved groundwork.
+
+Journal reviews support tags and up to three private screenshots of1 MiB each for a closed trade. The journal's UTC calendar and cumulative equity use the currently loaded, filtered closed rows. Import/export uses EXMOCHEX shaped CSV: save the source XLSX as CSV first, preview reconciliation, then explicitly apply only matching unreviewed notes/tags. The import never creates or changes entries/exits; screenshots are not in CSV. See CORE4-COMPLETION-SPEC.md for limits.
 
 Charts now support horizontal/trend lines, rectangles and Fibonacci retracements. Choose a tool, then one/two chart points; Escape cancels. Use the Objects panel to rename/edit/hide/lock/delete. Save layout stores drawings, EMA/SMA/RSI/volume choices and zoom for that account+symbol+timeframe. Conflicts retain the draft; Reload saved asks before discarding unsaved changes. Undo/redo history is session-only. See CORE3A-ARCHITECTURE.md for scope/limits; npm run compare:chart optionally checks actual clean sibling Mochex helpers.
 

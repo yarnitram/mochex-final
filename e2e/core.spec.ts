@@ -38,6 +38,8 @@ test('C-01..09: core watchlist/trade/journal flow and Mochex chart',async({page,
  }
  await page.getByRole('navigation').getByRole('button',{name:/Journal/}).click();
  await expect(page.getByRole('row').filter({hasText:'ETH_USDT'})).toContainText('+28.00');
+ await expect(page.getByRole('grid',{name:/Closed trades for/})).toBeVisible();
+ await expect(page.getByRole('img',{name:'Recorded closed trade equity curve'})).toBeVisible();
  await page.getByRole('button',{name:'Review ETH_USDT',exact:true}).click();
  await expect(dialog).toContainText('Exit 5 @ 106');await expect(dialog).toContainText('Exit 5 @ 100');
  await dialog.getByLabel('Post-trade review').fill('Followed the plan, kept the partial exits.');
@@ -52,10 +54,23 @@ test('C-01..09: core watchlist/trade/journal flow and Mochex chart',async({page,
  await page.getByRole('button',{name:'Review ETH_USDT',exact:true}).click();
  await expect(dialog.getByLabel('Post-trade review')).toHaveValue('Followed the plan, kept the partial exits.');
  await expect(dialog.getByLabel('Review tags')).toHaveValue('patience, risk-control');
+ const png=Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000b49444154789c636000020000050001a5f645400000000049454e44ae426082','hex');
+ await dialog.getByLabel('Attach trade screenshot').setInputFiles({name:'review.png',mimeType:'image/png',buffer:png});
+ await expect(dialog.getByText('Screenshots (1/3)')).toBeVisible();
+ const imagePath=await dialog.getByAltText('Trade screenshot').getAttribute('src');expect(imagePath).toMatch(/^\/api\/core\/journal\/images\//);
+ const image=await context.request.get(imagePath!);expect(image.status()).toBe(200);expect(image.headers()['content-type']).toBe('image/png');
+ const tradeIdForImage=(await (await context.request.get('/api/core/workspace')).json()).trades.find((t:any)=>t.data.symbol==='ETH_USDT'&&t.closed_at).id;
+ const blockedImage=await context.request.post('/api/core/journal/images?tradeId='+tradeIdForImage,{headers:{origin:'https://wrong.example.test','content-type':'image/png'},data:png});expect(blockedImage.status()).toBe(403);
  await dialog.getByRole('button',{name:'Close dialog'}).click();
  await page.reload();await page.getByRole('navigation').getByRole('button',{name:/Journal/}).click();
  await page.getByLabel('Filter journal by tag').selectOption('risk-control');
  await expect(page.getByRole('row').filter({hasText:'ETH_USDT'})).toContainText('risk-control');
+ const archive=await context.request.get('/api/core/journal/transfer');expect(archive.status()).toBe(200);expect(await archive.text()).toContain('ETH_USDT');
+ await page.getByText('Import / export journal',{exact:true}).click();
+ const row=(await (await context.request.get('/api/core/workspace')).json()).trades.find((t:any)=>t.data.symbol==='ETH_USDT'&&t.closed_at);
+ const csv='Date,Symbol,Side,Entry,P&L ($),Tags,Notes,Trade ID\n'+[row.closed_at.slice(0,10),'ETH_USDT','long','100','28','patience','Imported note',row.id].join(',')+'\n';
+ await page.getByLabel('Import EXMOCHEX CSV').setInputFiles({name:'exmochex.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+ await expect(page.getByRole('status').filter({hasText:'reviewed: 1'})).toBeVisible();
  await page.screenshot({path:'test-results/core-journal-desktop.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});await expect(page.locator('body')).toHaveJSProperty('scrollWidth',390);
  await page.screenshot({path:'test-results/core-mobile.png',fullPage:true});
